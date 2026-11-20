@@ -1,0 +1,33 @@
+name: citation-gate
+
+# Ghost URLs and uncited claims must not grow between changes. The gate runs
+# the no-LLM audit from gpt_researcher/citations.py over saved reports and
+# compares the totals with a committed baseline; evals/citation_gate/README
+# explains how to refresh it.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package and test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      - name: Citation audit must not regress
+        run: |
+          python -m evals.citation_gate.gate \
+            --reports evals/citation_gate/reports \
+            --baseline evals/citation_gate/baseline.json
+      - name: Gate unit tests
+        run: python -m pytest tests/test_citation_gate.py -q
